@@ -1,0 +1,16 @@
+name = "blog-admin"
+main = "src/index.js"
+compatibility_date = "2023-12-01"
+
+[vars]
+GITHUB_OWNER = "ImUpXuu"
+GITHUB_REPO = "myblog"
+GITHUB_BRANCH = "main"
+POSTS_PATH = "src/content/posts"
+IMAGE_PATH = "public/images"
+BLOG_URL = "https://upxuu.com"
+PHOTO_OWNER = "ImUpXuu"
+PHOTO_REPO = "photo"
+PHOTO_BRANCH = "main"
+PHOTO_PATH = "images"
+PROXY_BASE = "https://edit.upxuu.com/img"

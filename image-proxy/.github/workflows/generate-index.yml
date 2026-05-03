@@ -1,0 +1,142 @@
+name: Generate Image Index
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'images/**'
+
+jobs:
+  generate-index:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Generate index files
+        run: |
+          node << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+          
+          const IMAGES_DIR = 'images';
+          const PROXY_BASE = 'https://edit.upxuu.com/img';
+          
+          function getAllDirectories(dir) {
+            const dirs = [];
+            if (!fs.existsSync(dir)) return dirs;
+            
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+            for (const item of items) {
+              if (item.isDirectory()) {
+                const fullPath = path.join(dir, item.name);
+                dirs.push(fullPath);
+                dirs.push(...getAllDirectories(fullPath));
+              }
+            }
+            return dirs;
+          }
+          
+          function getImagesInDir(dir) {
+            if (!fs.existsSync(dir)) return [];
+            
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+            return items
+              .filter(item => item.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(item.name))
+              .map(item => {
+                const relative = path.relative(IMAGES_DIR, path.join(dir, item.name));
+                const parts = relative.split(path.sep);
+                const url = `${PROXY_BASE}/${parts.join('/')}`;
+                return {
+                  name: item.name,
+                  url: url,
+                  path: parts.join('/')
+                };
+              });
+          }
+          
+          function generateIndex(dir, isRoot = false) {
+            const images = getImagesInDir(dir);
+            
+            if (!isRoot) {
+              // 日期目录索引
+              const dateParts = dir.split(path.sep);
+              const dateKey = dateParts.slice(-2).join('-');
+              
+              const indexData = images.map(img => ({
+                name: img.name,
+                url: img.url,
+                date: dateKey
+              }));
+              
+              const indexPath = path.join(dir, 'index.json');
+              fs.writeFileSync(indexPath, JSON.stringify(indexData, null, 2));
+              console.log(`Generated: ${indexPath}`);
+            } else {
+              // 根索引 - 按月份分组
+              const monthMap = {};
+              
+              images.forEach(img => {
+                const parts = img.path.split(path.sep);
+                if (parts.length >= 2) {
+                  const year = parts[0];
+                  const month = parts[1];
+                  const key = `${year}/${month}`;
+                  
+                  if (!monthMap[key]) {
+                    monthMap[key] = {
+                      year: parseInt(year),
+                      month: parseInt(month),
+                      count: 0,
+                      url: `${PROXY_BASE}/${year}/${month}/index.json`
+                    };
+                  }
+                  monthMap[key].count++;
+                }
+              });
+              
+              const rootIndex = Object.values(monthMap)
+                .sort((a, b) => {
+                  if (a.year !== b.year) return b.year - a.year;
+                  return b.month - a.month;
+                });
+              
+              const indexPath = path.join(IMAGES_DIR, 'index.json');
+              fs.writeFileSync(indexPath, JSON.stringify(rootIndex, null, 2));
+              console.log(`Generated: ${indexPath}`);
+            }
+          }
+          
+          // 生成根索引
+          generateIndex(IMAGES_DIR, true);
+          
+          // 生成所有日期目录的索引
+          const allDirs = getAllDirectories(IMAGES_DIR);
+          allDirs.forEach(dir => {
+            const parts = dir.split(path.sep);
+            // 只为日期目录生成索引（年份/月份/日期）
+            if (parts.length === 4 && parts[0] === 'images') {
+              generateIndex(dir, false);
+            }
+          });
+          EOF
+      
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add images/
+          git diff --cached --exit-code || git commit -m "chore: auto-generate image index [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

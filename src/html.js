@@ -687,6 +687,8 @@ export const ADMIN_HTML = `
     }
 
     // --- Auth Logic ---
+    let currentView = null;  // 跟踪当前视图
+    
     const storedKey = localStorage.getItem('admin_key');
     if (!storedKey) {
         document.getElementById('login-screen').classList.remove('hidden');
@@ -743,6 +745,15 @@ export const ADMIN_HTML = `
             toggleSidebar();
         }
         
+        // 如果路径相同，不重复导航
+        if (window.location.pathname === path) {
+            // 如果已经在编辑器界面但文件名不为空，点击"写文章"应该清空
+            if (path === '/' || path === '/new' || path === '/create') {
+                newPost();
+            }
+            return;
+        }
+        
         history.pushState(null, '', path);
         handleRoute();
     }
@@ -750,18 +761,25 @@ export const ADMIN_HTML = `
     function handleRoute() {
         const path = window.location.pathname;
         
+        // 如果视图没有变化，不重新加载
+        if (currentView === path) return;
+        currentView = path;
+        
         // Update Sidebar Active State
         document.querySelectorAll('aside nav a').forEach(el => {
             el.classList.remove('bg-slate-800', 'text-white');
             el.querySelector('i').classList.remove('text-blue-400');
         });
         
-        if (path === '/' || path === '/new') {
+        if (path === '/' || path === '/new' || path === '/create') {
             const el = document.getElementById('nav-new');
             el.classList.add('bg-slate-800', 'text-white');
             el.querySelector('i').classList.add('text-blue-400');
             showEditorView();
-            newPost();
+            // 只有当文件名输入框为空时才调用 newPost()，避免清空正在编辑的内容
+            if (!document.getElementById('post-filename').value) {
+                newPost();
+            }
         } else if (path === '/list') {
             const el = document.getElementById('nav-list');
             el.classList.add('bg-slate-800', 'text-white');
