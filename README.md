@@ -1,7 +1,8 @@
 # Blog Admin Worker
 
-基于 Cloudflare Workers 的博客管理后台，使用 Vditor 作为 Markdown 编辑器。
-
+基于 Cloudflare Workers 的博客管理后台与图床系统，一worker通吃 一个worker解决你的所有博客编辑问题！
+使用 Vditor 作为 Markdown 编辑器。
+![image.png](https://edit.upxuu.com/img/2026/5/4/20260503230406_418.png)
 ## 功能特性
 
 - ✨ 支持三种编辑模式：即时渲染 (IR)、所见即所得 (WYSIWYG)、分屏预览 (SV)
@@ -11,13 +12,17 @@
   - 历史图片保留在 myblog 仓库（`/image/` 路由）
   - 按 `年/月/日/时间戳_随机数。扩展名` 结构存储
   - 递归获取所有子目录中的图片
+  - crtl cv即可一键上传图片到图床
+![image.png](https://edit.upxuu.com/img/2026/5/4/20260503230451_869.png)
 - 🤝 友链管理，在线编辑 GitHub 仓库中的友链配置
+![image.png](https://edit.upxuu.com/img/2026/5/4/20260503230535_598.png)
 - 📅 时间轴筛选文章
+![img](https://edit.upxuu.com/img/2026/5/4/20260503230406_418.png)
 - 🎨 多主题支持
 - 🔒 安全认证 + CAPTCHA 验证
 - 📱 移动端优化，智能固定布局
 - 🔍 IndexNow 自动提交（Bing 搜索引擎）
-
+- 所有请求均通过worker代理发送 无畏网络问题！
 ## 技术栈
 
 - **前端**：原生 JavaScript + TailwindCSS + Vditor
