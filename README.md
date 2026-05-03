@@ -270,7 +270,8 @@ const PROXY_BASE = 'https://edit.upxuu.com/img';  // 改为你的地址
 - 顶部工具栏固定定位，滚动时始终可见
 - 发布按钮集成在设置面板中，避免误触
 - 响应式设计，适配各种屏幕尺寸
-
+欢迎加入交流群！
+![img](https://edit.upxuu.com/img/2026/4/26/20260426203928_741.png)
 ## 许可证
 
 MIT
