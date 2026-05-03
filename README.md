@@ -23,6 +23,7 @@
 在移动端（屏幕宽度 ≤ 768px）时，Vditor 编辑器工具栏会自动固定在屏幕底部，呈现为一个小横条，方便单手握持和操作。
 
 **特性：**
+
 - ✅ 工具栏固定在底部，不会遮挡编辑内容
 - ✅ 单行可左右滑动，所有工具触手可及
 - ✅ 按钮大小适中（18x18px 图标），不会过大
@@ -50,13 +51,21 @@
 ### 部署步骤
 
 1. 安装依赖
+
 ```bash
-npm install
+admin-worker/
+├── src/
+│   ├── index.js        # Cloudflare Workers 主入口
+│   └── html.js         # 管理后台 HTML 和 JavaScript
+├── wrangler.toml       # Wrangler 配置文件
+├── package.json        # 项目依赖配置
+└── README.md          # 项目说明文档
 ```
 
-2. 配置环境变量
+1. 配置环境变量
 
 编辑 `wrangler.toml` 文件，配置以下变量：
+
 - `GITHUB_OWNER`: GitHub 用户名
 - `GITHUB_REPO`: 博客仓库名
 - `GITHUB_BRANCH`: 分支名
@@ -64,7 +73,7 @@ npm install
 - `IMAGE_PATH`: 图片路径
 - `BLOG_URL`: 博客地址
 
-3. 设置 Secrets
+1. 设置 Secrets
 
 ```bash
 # 设置 GitHub Token
@@ -74,7 +83,7 @@ wrangler secret put GITHUB_TOKEN
 wrangler secret put ADMIN_PASSWORD
 ```
 
-4. 部署
+1. 部署
 
 ```bash
 npm run deploy
@@ -85,7 +94,11 @@ npm run deploy
 本地开发模式：
 
 ```bash
-npm run dev
+# 设置 GitHub Token
+wrangler secret put GITHUB_TOKEN
+
+# 设置管理员密码
+wrangler secret put ADMIN_PASSWORD
 ```
 
 ## 项目结构
@@ -120,3 +133,4 @@ MIT
 - [Vditor](https://github.com/Vanessa219/vditor) - 优秀的 Markdown 编辑器
 - [Cloudflare Workers](https://workers.cloudflare.com/) - 无服务器平台
 - [TailwindCSS](https://tailwindcss.com/) - 实用工具 CSS 框架
+
