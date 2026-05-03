@@ -1,0 +1,9 @@
+name = "image-proxy"
+main = "src/index.js"
+compatibility_date = "2023-12-01"
+
+[vars]
+GITHUB_OWNER = "lijiaxu2021"
+GITHUB_REPO = "blogfile"
+GITHUB_BRANCH = "main"
+GITHUB_TOKEN = "your_github_token_here"

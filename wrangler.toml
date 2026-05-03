@@ -1,0 +1,14 @@
+name = "blog-admin"
+main = "src/index.js"
+compatibility_date = "2023-12-01"
+
+[vars]
+GITHUB_OWNER = "your-github-username"
+GITHUB_REPO = "your-blog-repo"
+GITHUB_BRANCH = "main"
+POSTS_PATH = "src/content/posts"
+IMAGE_PATH = "public/images"
+BLOG_URL = "https://your-blog-url.com"
+IMAGE_REPO_OWNER = "your-github-username"
+IMAGE_REPO_NAME = "your-image-repo"
+IMAGE_REPO_BRANCH = "main"
