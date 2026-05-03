@@ -150,8 +150,8 @@ export default {
                         },
                         body: JSON.stringify({
                             "host": "upxuu.com",
-                            "key": "843eed6b719248eba1acd3b27788c81e",
-                            "keyLocation": "https://upxuu.com/843eed6b719248eba1acd3b27788c81e.txt",
+                            "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                            "keyLocation": "https://upxuu.com/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.txt",
                             "urlList": [ postUrl ]
                         })
                     });
