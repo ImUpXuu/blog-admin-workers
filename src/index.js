@@ -19,13 +19,13 @@ export default {
 
     // Serve Admin HTML
     // Support client-side routing: /, /admin, /new, /list, /gallery, /settings, /edit/*
-    if (path === '/' || path === '/admin' || path === '/new' || path === '/list' || path === '/gallery' || path === '/settings' || path.startsWith('/edit/')) {
+    if (path === '/' || path === '/admin' || path === '/new' || path === '/list' || path === '/gallery' || path === '/settings' || path === '/talk' || path.startsWith('/edit/') || path.startsWith('/edittalk/')) {
       return new Response(ADMIN_HTML, {
         headers: { 'Content-Type': 'text/html' },
       });
     }
 
-      // Proxy Image (Public Access) - Old images from myblog repo
+      // Proxy Image (Public Access) - Old images from blog repo
     if (path.startsWith('/image/')) {
         const filename = path.replace('/image/', '');
         const imageUrl = `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/${env.GITHUB_BRANCH}/${env.IMAGE_PATH}/${filename}`;
@@ -278,6 +278,39 @@ export default {
           else return new Response('Invalid file type', { status: 400 });
           
           return await updateGitHubFile(env, path, body.content, body.sha, `Update ${body.file} via Admin Settings`);
+      }
+
+      // List Talks
+      if (apiPath === '/talks' && request.method === 'GET') {
+        return await talkListFiles(env, env.TALK_PATH);
+      }
+
+      // Get Talk
+      if (apiPath.startsWith('/talk/') && request.method === 'GET') {
+        const filename = decodeURIComponent(apiPath.replace('/talk/', ''));
+        return await talkGetFile(env, `${env.TALK_PATH}/${filename}`);
+      }
+
+      // Create/Update Talk
+      if (apiPath.startsWith('/talk/') && request.method === 'PUT') {
+        const filename = decodeURIComponent(apiPath.replace('/talk/', ''));
+        const body = await request.json();
+        let sha = body.sha;
+        if (!sha) {
+          const checkRes = await talkGithubRequest(env, `${env.TALK_PATH}/${filename}`);
+          if (checkRes.ok) {
+            const existing = await checkRes.json();
+            sha = existing.sha;
+          }
+        }
+        return await talkUpdateFile(env, `${env.TALK_PATH}/${filename}`, body.content, sha, `Update ${filename} via Admin`);
+      }
+
+      // Delete Talk
+      if (apiPath.startsWith('/talk/') && request.method === 'DELETE') {
+        const filename = decodeURIComponent(apiPath.replace('/talk/', ''));
+        const body = await request.json();
+        return await talkDeleteFile(env, `${env.TALK_PATH}/${filename}`, body.sha, `Delete ${filename} via Admin`);
       }
     }
 
@@ -618,4 +651,129 @@ async function deleteGitHubFile(env, path, sha, message) {
     };
     const res = await githubRequest(env, path, 'DELETE', body);
     return new Response(JSON.stringify(await res.json()), { status: res.status });
+}
+
+// Talk-specific GitHub helpers (xuhome repo)
+async function talkGithubRequest(env, path, method = 'GET', body = null) {
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  const url = `https://api.github.com/repos/${env.TALK_OWNER}/${env.TALK_REPO}/contents/${encodedPath}?ref=${env.TALK_BRANCH}`;
+  const headers = {
+    'User-Agent': 'Cloudflare-Worker-Blog-Admin',
+    'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github.v3+json',
+  };
+  const options = { method, headers };
+  if (body) options.body = JSON.stringify(body);
+  return await fetch(url, options);
+}
+
+async function talkListFiles(env, path) {
+  const query = `
+    query($owner: String!, $repo: String!, $path: String!) {
+      repository(owner: $owner, name: $repo) {
+        object(expression: $path) {
+          ... on Tree {
+            entries {
+              name
+              type
+              oid
+              object {
+                ... on Blob {
+                  text
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const expression = `${env.TALK_BRANCH}:${path}`;
+  const res = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+      'User-Agent': 'Cloudflare-Worker-Blog-Admin',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      variables: {
+        owner: env.TALK_OWNER,
+        repo: env.TALK_REPO,
+        path: expression
+      }
+    })
+  });
+  const data = await res.json();
+  if (!res.ok || data.errors) {
+    console.error('Talk GraphQL Error:', data.errors);
+    return talkListFilesRest(env, path);
+  }
+  const entries = data.data.repository.object?.entries || [];
+  const files = entries.map(entry => {
+    let title = entry.name;
+    let date = null;
+    if (entry.object && entry.object.text) {
+      const text = entry.object.text;
+      const fmMatch = text.match(/^---\n([\s\S]*?)\n---/);
+      if (fmMatch) {
+        const fm = fmMatch[1];
+        const titleMatch = fm.match(/^title:\s*["']?(.*?)["']?\s*$/m);
+        if (titleMatch) title = titleMatch[1].trim();
+        const dateMatch = fm.match(/^date:\s*["']?(.*?)["']?\s*$/m);
+        if (dateMatch) date = dateMatch[1].trim();
+      }
+    }
+    return {
+      name: entry.name,
+      path: `${path}/${entry.name}`,
+      sha: entry.oid,
+      title: title,
+      date: date,
+      type: 'file'
+    };
+  });
+  return new Response(JSON.stringify(files), { headers: { 'Content-Type': 'application/json' } });
+}
+
+async function talkListFilesRest(env, path) {
+  const res = await talkGithubRequest(env, path);
+  const data = await res.json();
+  if (!res.ok) return new Response(JSON.stringify(data), { status: res.status });
+  const files = Array.isArray(data) ? data.map(f => ({
+    name: f.name, path: f.path, sha: f.sha, type: f.type, title: f.name, date: null
+  })) : [];
+  return new Response(JSON.stringify(files), { headers: { 'Content-Type': 'application/json' } });
+}
+
+async function talkGetFile(env, path) {
+  const res = await talkGithubRequest(env, path);
+  const data = await res.json();
+  if (!res.ok) return new Response(JSON.stringify(data), { status: res.status });
+  const content = atob(data.content.replace(/\n/g, ''));
+  const decoder = new TextDecoder('utf-8');
+  const rawContent = decoder.decode(Uint8Array.from(content, c => c.charCodeAt(0)));
+  return new Response(JSON.stringify({ content: rawContent, sha: data.sha }), { headers: { 'Content-Type': 'application/json' } });
+}
+
+async function talkUpdateFile(env, path, content, sha, message) {
+  const encoder = new TextEncoder();
+  const uint8Array = encoder.encode(content);
+  let binaryString = '';
+  for (let i = 0; i < uint8Array.length; i++) {
+    binaryString += String.fromCharCode(uint8Array[i]);
+  }
+  const base64Content = btoa(binaryString);
+  const body = { message: message, content: base64Content, branch: env.TALK_BRANCH };
+  if (sha) body.sha = sha;
+  const res = await talkGithubRequest(env, path, 'PUT', body);
+  const data = await res.json();
+  return new Response(JSON.stringify(data), { status: res.status });
+}
+
+async function talkDeleteFile(env, path, sha, message) {
+  const body = { message: message, sha: sha, branch: env.TALK_BRANCH };
+  const res = await talkGithubRequest(env, path, 'DELETE', body);
+  return new Response(JSON.stringify(await res.json()), { status: res.status });
 }

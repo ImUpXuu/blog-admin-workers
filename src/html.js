@@ -294,7 +294,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
    ============================================================ */
 @media (max-width: 768px) {
   :root { --header-h: 56px; }
-  #app-screen.active { grid-template-columns: 1fr; }
+  #app-screen.active { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   #mobile-header { display: flex; }
 
   /* Sidebar becomes slide-in drawer */
@@ -321,7 +321,53 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
   /* Drop zone less padding */
   #image-manager-modal .drop-zone { padding: 20px; }
+
+  /* Talk editor on mobile */
+  #view-talk .talk-meta-row .talk-date-input { width: 100%; }
 }
+
+/* ============================================================
+   Talk Editor
+   ============================================================ */
+#view-talk { overflow-y: auto; }
+#view-talk .talk-inner { max-width: 860px; margin: 0 auto; padding: 32px 24px; width: 100%; display: flex; flex-direction: column; gap: 16px; }
+#view-talk .talk-toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #fff; border: 1px solid var(--border); border-radius: 12px; flex-wrap: wrap; }
+#view-talk .talk-toolbar .tt-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+#view-talk .talk-toolbar button { width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: #475569; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+#view-talk .talk-toolbar button:hover { background: #f1f5f9; color: var(--primary); }
+#view-talk .talk-toolbar button b { font-size: 13px; }
+#view-talk .talk-meta-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+#view-talk .talk-meta-row .talk-title-input { flex: 1; min-width: 200px; font-size: 20px; font-weight: 700; border: none; border-bottom: 2px solid transparent; padding: 8px 12px; outline: none; background: #fff; border-radius: 10px 10px 0 0; transition: border-color 0.15s; }
+#view-talk .talk-meta-row .talk-title-input:focus { border-bottom-color: var(--primary); }
+#view-talk .talk-meta-row .talk-date-input { width: 220px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #fff; font-family: monospace; transition: border-color 0.15s; }
+#view-talk .talk-meta-row .talk-date-input:focus { border-color: var(--primary); }
+#view-talk .talk-meta-row .talk-actions { display: flex; gap: 8px; }
+#view-talk .talk-textarea { flex: 1; min-height: 360px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 15px; line-height: 1.8; outline: none; background: #fff; resize: vertical; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; transition: border-color 0.15s; }
+#view-talk .talk-textarea:focus { border-color: var(--primary); }
+#view-talk .talk-list-btn { align-self: flex-start; }
+
+/* Talk List Modal */
+#talk-list-modal { position: fixed; inset: 0; z-index: 200; display: none; }
+#talk-list-modal.active { display: flex; align-items: center; justify-content: center; }
+#talk-list-modal .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+#talk-list-modal .modal-content { position: relative; background: #fff; border-radius: 16px; width: min(640px, 95vw); max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px rgba(0,0,0,0.25); animation: modalIn 0.2s ease-out; }
+#talk-list-modal .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: #f8fafc; flex-shrink: 0; }
+#talk-list-modal .modal-header h3 { font-size: 16px; font-weight: 700; }
+#talk-list-modal .modal-header .close-btn { width: 36px; height: 36px; border-radius: 999px; border: none; background: transparent; cursor: pointer; font-size: 18px; color: #64748b; display: flex; align-items: center; justify-content: center; }
+#talk-list-modal .modal-header .close-btn:hover { background: #e2e8f0; }
+#talk-list-modal .modal-body { flex: 1; overflow-y: auto; padding: 8px; }
+.talk-list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 10px; cursor: pointer; transition: all 0.15s; gap: 12px; }
+.talk-list-item:hover { background: #f8fafc; }
+.talk-list-item .talk-item-body { flex: 1; min-width: 0; }
+.talk-list-item .talk-item-title { font-weight: 600; font-size: 15px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talk-list-item .talk-item-date { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.talk-list-item .talk-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.talk-list-item .talk-item-actions button { width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: #94a3b8; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.talk-list-item .talk-item-actions button:hover.edit { background: #eff6ff; color: #3b82f6; }
+.talk-list-item .talk-item-actions button:hover.delete { background: #fef2f2; color: #ef4444; }
+#talk-list-modal .no-talks { display: none; flex-direction: column; align-items: center; padding: 40px 20px; color: #94a3b8; }
+#talk-list-modal .no-talks.active { display: flex; }
+#talk-list-modal .no-talks i { font-size: 36px; margin-bottom: 12px; }
 
 @media (min-width: 769px) {
   /* On desktop, always show panels */
@@ -399,6 +445,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     <nav>
       <div class="nav-section">菜单</div>
       <a href="javascript:void(0)" onclick="navigate('/')" id="nav-new"><i class="fas fa-pen-nib"></i> 写文章</a>
+      <a href="javascript:void(0)" onclick="navigate('/talk')" id="nav-talk"><i class="fas fa-comment-dots"></i> 说说</a>
       <a href="javascript:void(0)" onclick="navigate('/list')" id="nav-list"><i class="fas fa-list"></i> 文章管理</a>
       <a href="javascript:void(0)" onclick="navigate('/gallery')" id="nav-gallery"><i class="fas fa-images"></i> 图库管理</a>
       <a href="javascript:void(0)" onclick="navigate('/friends')" id="nav-friends"><i class="fas fa-handshake"></i> 友链管理</a>
@@ -537,6 +584,45 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     </div>
 
     <!-- ============================================================
+         View: Talk (说说)
+         ============================================================ -->
+    <div id="view-talk" class="view">
+      <div class="talk-inner">
+        <div class="talk-meta-row">
+          <input type="text" id="talk-title" class="talk-title-input" placeholder="说说标题...">
+          <input type="datetime-local" id="talk-date" class="talk-date-input" step="1">
+          <div class="talk-actions">
+            <button onclick="showTalkList()" class="btn btn-secondary btn-sm"><i class="fas fa-list"></i> 列表</button>
+            <button onclick="saveTalk()" class="btn btn-primary"><i class="fas fa-paper-plane"></i> 发布</button>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:12px; font-weight:600; color:#64748b; white-space:nowrap;">标签:</label>
+          <input type="text" id="talk-tags" class="input-field" placeholder="生活, 摄影 (逗号分隔)" style="flex:1; padding:6px 10px; font-size:13px;">
+        </div>
+        <div class="talk-toolbar">
+          <button onclick="talkInsertBold()" title="粗体 Ctrl+B"><b>B</b></button>
+          <button onclick="talkInsertItalic()" title="斜体 Ctrl+I"><i>I</i></button>
+          <button onclick="talkInsertStrike()" title="删除线"><s>S</s></button>
+          <button onclick="talkInsertCode()" title="行内代码">&lt;/&gt;</button>
+          <span class="tt-sep"></span>
+          <button onclick="talkInsertLink()" title="链接" style="font-size:12px;">&#128279;</button>
+          <button onclick="talkInsertImage()" title="图片URL" style="font-size:12px;">&#128444;</button>
+          <button onclick="document.getElementById('talk-quick-upload').click()" title="快捷上传图片" style="font-size:12px;color:#22c55e;">&#8682;</button>
+          <input type="file" id="talk-quick-upload" style="display:none;" accept="image/*" multiple onchange="handleTalkQuickUpload(this)">
+          <button onclick="toggleImageManager('talk')" title="图库" style="font-size:12px;">&#128193;</button>
+          <span class="tt-sep"></span>
+          <button onclick="talkInsertQuote()" title="引用" style="font-size:12px;">&#10077;</button>
+          <button onclick="talkInsertHr()" title="分割线" style="font-size:12px;">&mdash;</button>
+        </div>
+        <textarea id="talk-textarea" class="talk-textarea" placeholder="在这里写下你想说的话..."></textarea>
+        <div style="font-size:12px; color:#94a3b8;">
+          <i class="fas fa-lightbulb" style="margin-right:4px; color:#f59e0b;"></i>支持 Markdown 语法。Ctrl+V 粘贴图片自动上传。
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
          View: Settings
          ============================================================ -->
     <div id="view-settings" class="view">
@@ -607,6 +693,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
 <!-- Autosave indicator -->
 <div id="autosave-indicator">草稿已自动保存</div>
+
+<!-- Talk List Modal -->
+<div id="talk-list-modal">
+  <div class="modal-backdrop" onclick="hideTalkList()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3><i class="fas fa-comment-dots" style="color:var(--primary); margin-right:8px;"></i>说说列表</h3>
+      <button class="close-btn" onclick="hideTalkList()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" id="talk-list-body"></div>
+    <div class="no-talks" id="no-talks"><i class="far fa-comment"></i><p>暂无说说</p></div>
+  </div>
+</div>
 
 <!-- ============================================================
      JAVASCRIPT
@@ -767,6 +866,15 @@ function handleRoute() {
     var filename = decodeURIComponent(path.replace('/edit/', ''));
     if (filename) editPost(filename);
     initVditor();
+  } else if (path === '/talk') {
+    document.getElementById('nav-talk').classList.add('active');
+    document.getElementById('view-talk').classList.add('active');
+    if (!document.getElementById('talk-title').value) newTalk();
+  } else if (path.startsWith('/edittalk/')) {
+    document.getElementById('nav-talk').classList.add('active');
+    document.getElementById('view-talk').classList.add('active');
+    var tfn = decodeURIComponent(path.replace('/edittalk/', ''));
+    if (tfn) editTalk(tfn);
   }
 }
 
@@ -1216,6 +1324,13 @@ function toggleImageManager(mode) {
 function handleImageClick(url, name) {
   if (currentImageMode === 'editor') {
     insertImageToEditor(url, name);
+  } else if (currentImageMode === 'talk') {
+    var ta = document.getElementById('talk-textarea');
+    var start = ta.selectionStart;
+    var mdImg = '![' + name + '](' + url + ')';
+    ta.value = ta.value.substring(0, start) + mdImg + ta.value.substring(ta.selectionEnd);
+    ta.focus();
+    ta.setSelectionRange(start + mdImg.length, start + mdImg.length);
   } else if (currentImageMode === 'cover') {
     document.getElementById('fm-image').value = url;
     toggleImageManager();
@@ -1271,7 +1386,7 @@ function toggleImageSelection(name, url, cb) {
 function updateBatchUI() {
   var btn = document.getElementById('btn-batch-insert');
   var count = document.getElementById('batch-count');
-  if (selectedImages.size > 0 && currentImageMode === 'editor') {
+  if (selectedImages.size > 0 && (currentImageMode === 'editor' || currentImageMode === 'talk')) {
     btn.style.display = 'inline-flex';
     count.textContent = selectedImages.size;
   } else {
@@ -1280,13 +1395,20 @@ function updateBatchUI() {
 }
 
 function batchInsert() {
-  if (!isVditorReady) return;
   var md = '';
   selectedImages.forEach(function(json) {
     var item = JSON.parse(json);
     md += '![' + item.name + '](' + item.url + ')\\n';
   });
-  vditor.insertValue(md);
+  if (currentImageMode === 'talk') {
+    var ta = document.getElementById('talk-textarea');
+    var start = ta.selectionStart;
+    ta.value = ta.value.substring(0, start) + md + ta.value.substring(ta.selectionEnd);
+    ta.focus();
+    ta.setSelectionRange(start + md.length, start + md.length);
+  } else if (isVditorReady) {
+    vditor.insertValue(md);
+  }
   selectedImages.clear();
   updateBatchUI();
   document.querySelectorAll('#image-grid input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
@@ -1571,6 +1693,296 @@ async function saveSettings() {
 function loadFriends() {
   // Placeholder: friends management not yet implemented
 }
+
+// ==================== Talk (说说) ====================
+var currentTalkSha = null;
+
+function newTalk() {
+  currentTalkSha = null;
+  document.getElementById('talk-title').value = '';
+  document.getElementById('talk-tags').value = '';
+  var now = new Date();
+  var localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 19);
+  document.getElementById('talk-date').value = localIso;
+  document.getElementById('talk-textarea').value = '';
+}
+
+function showTalkList() {
+  document.getElementById('talk-list-modal').classList.add('active');
+  loadTalkList();
+}
+
+function hideTalkList() {
+  document.getElementById('talk-list-modal').classList.remove('active');
+}
+
+async function loadTalkList() {
+  var body = document.getElementById('talk-list-body');
+  var noEl = document.getElementById('no-talks');
+  body.innerHTML = '<div style="text-align:center;padding:20px;"><div class="spinner" style="border-color:rgba(0,0,0,0.2);border-top-color:var(--primary);width:28px;height:28px;margin:0 auto;"></div></div>';
+  var res = await fetchAPI('/talks');
+  if (!res) return;
+  var talks = await res.json();
+  talks = talks.filter(function(t) { return t.name.endsWith('.md'); });
+  talks.sort(function(a, b) { return (b.date || '').localeCompare(a.date || ''); });
+  if (talks.length === 0) {
+    body.innerHTML = '';
+    noEl.classList.add('active');
+    return;
+  }
+  noEl.classList.remove('active');
+  body.innerHTML = '';
+  talks.forEach(function(t) {
+    var displayTitle = t.title || t.name;
+    var displayDate = t.date || '';
+    var div = document.createElement('div');
+    div.className = 'talk-list-item';
+    div.onclick = function(e) {
+      if (e.target.closest('button')) return;
+      hideTalkList();
+      navigate('/edittalk/' + encodeURIComponent(t.name));
+    };
+    div.innerHTML =
+      '<div class="talk-item-body">' +
+        '<div class="talk-item-title">' + escapeHTML(displayTitle) + '</div>' +
+        '<div class="talk-item-date">' + escapeHTML(displayDate) + '</div>' +
+      '</div>' +
+      '<div class="talk-item-actions">' +
+        '<button class="edit" onclick="event.stopPropagation();hideTalkList();navigate(&quot;/edittalk/' + encodeURIComponent(t.name) + '&quot;)" title="编辑"><i class="fas fa-edit"></i></button>' +
+        '<button class="delete" onclick="event.stopPropagation();deleteTalk(&quot;' + escapeHTML(t.name) + '&quot;,&quot;' + t.sha + '&quot;)" title="删除"><i class="fas fa-trash-alt"></i></button>' +
+      '</div>';
+    body.appendChild(div);
+  });
+}
+
+async function deleteTalk(name, sha) {
+  if (!confirm('确定要删除 "' + name + '" 吗？此操作不可恢复！')) return;
+  showLoading(true);
+  var res = await fetchAPI('/talk/' + encodeURIComponent(name), {
+    method: 'DELETE',
+    body: JSON.stringify({ sha: sha })
+  });
+  showLoading(false);
+  if (res && res.ok) {
+    loadTalkList();
+  } else {
+    alert('删除失败');
+  }
+}
+
+async function saveTalk() {
+  var title = document.getElementById('talk-title').value.trim();
+  if (!title) return alert('请输入标题');
+  var date = document.getElementById('talk-date').value;
+  if (date) date = date.replace('T', ' ');
+  var tagsStr = document.getElementById('talk-tags').value.trim();
+  var contentBody = document.getElementById('talk-textarea').value;
+  var fm = '---\\n';
+  fm += 'title: "' + title + '"\\n';
+  if (date) fm += 'date: "' + date + '"\\n';
+  if (tagsStr) {
+    var tagList = tagsStr.split(/[,，]/).map(function(t) { return '"' + t.trim() + '"'; }).filter(function(t) { return t.length > 2; });
+    if (tagList.length > 0) fm += 'tags: [' + tagList.join(', ') + ']\\n';
+  }
+  fm += '---\\n\\n';
+  var content = fm + contentBody;
+  var safeTitle = title.replace(/[\/\\:*?"<>|]/g, '-').replace(/\s+/g, '-').substring(0, 30);
+  var filename = date ? date.substring(0, 10) + '-' + safeTitle : safeTitle;
+  filename += '.md';
+  showLoading(true);
+  var res = await fetchAPI('/talk/' + encodeURIComponent(filename), {
+    method: 'PUT',
+    body: JSON.stringify({ content: content, sha: currentTalkSha })
+  });
+  showLoading(false);
+  if (res && res.ok) {
+    var data = await res.json();
+    if (data.content && data.content.sha) currentTalkSha = data.content.sha;
+    alert('发布成功！');
+  } else {
+    var err = res ? await res.text() : 'Unknown error';
+    alert('发布失败: ' + err);
+  }
+}
+
+async function editTalk(name) {
+  document.getElementById('talk-title').value = '';
+  document.getElementById('talk-date').value = '';
+  document.getElementById('talk-tags').value = '';
+  document.getElementById('talk-textarea').value = '';
+  showLoading(true);
+  var res = await fetchAPI('/talk/' + encodeURIComponent(name));
+  showLoading(false);
+  if (!res || !res.ok) { alert('无法获取说说内容'); return; }
+  var data = await res.json();
+  currentTalkSha = data.sha;
+  var fmRegex = /^---\\n([\\s\\S]*?)\\n---\\n/;
+  var match = data.content.match(fmRegex);
+  var body = data.content;
+  if (match) {
+    body = data.content.replace(fmRegex, '');
+    var fmText = match[1];
+    function getField(key) {
+      var lines = fmText.split('\\n');
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var idx = line.indexOf(':');
+        if (idx > 0 && line.substring(0, idx).trim() === key) {
+          return line.substring(idx + 1).trim();
+        }
+      }
+      return '';
+    }
+    document.getElementById('talk-title').value = getField('title').replace(/^['"]|['"]$/g, '');
+    var d = getField('date').replace(/^['"]|['"]$/g, '').replace(' ', 'T');
+    document.getElementById('talk-date').value = d;
+    var tagsRaw = getField('tags').trim();
+    if (tagsRaw.startsWith('[') && tagsRaw.endsWith(']')) tagsRaw = tagsRaw.substring(1, tagsRaw.length - 1);
+    var tagsList = tagsRaw.split(/[,，]/).map(function(t) { return t.trim().replace(/^['"]+|['"]+$/g, ''); }).filter(function(t) { return t; });
+    document.getElementById('talk-tags').value = tagsList.join(', ');
+  }
+  document.getElementById('talk-textarea').value = body;
+}
+
+// Minimal Markdown toolbar functions
+function talkGetTextarea() { return document.getElementById('talk-textarea'); }
+
+function talkInsertAround(prefix, suffix) {
+  var ta = talkGetTextarea();
+  var start = ta.selectionStart, end = ta.selectionEnd;
+  var text = ta.value;
+  var selected = text.substring(start, end);
+  var replacement = prefix + selected + (suffix || prefix);
+  ta.value = text.substring(0, start) + replacement + text.substring(end);
+  ta.focus();
+  var newPos = start + replacement.length;
+  if (selected) {
+    ta.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+  } else {
+    ta.setSelectionRange(newPos, newPos);
+  }
+}
+
+function talkInsertBold() { talkInsertAround('**', '**'); }
+function talkInsertItalic() { talkInsertAround('*', '*'); }
+function talkInsertStrike() { talkInsertAround('~~', '~~'); }
+function talkInsertCode() { talkInsertAround('\x60', '\x60'); }
+
+function talkInsertLink() {
+  var ta = talkGetTextarea();
+  var url = prompt('请输入链接 URL:', 'https://');
+  if (!url) return;
+  talkInsertAround('[', '](' + url + ')');
+}
+
+function talkInsertImage() {
+  var ta = talkGetTextarea();
+  var url = prompt('请输入图片 URL:', 'https://');
+  if (!url) return;
+  talkInsertAround('![', '](' + url + ')');
+}
+
+function talkInsertQuote() {
+  var ta = talkGetTextarea();
+  var start = ta.selectionStart, end = ta.selectionEnd;
+  var text = ta.value;
+  var selected = text.substring(start, end);
+  var lines = (selected || '引用内容').split('\\n');
+  var quoted = lines.map(function(l) { return '> ' + l; }).join('\\n');
+  ta.value = text.substring(0, start) + quoted + text.substring(end);
+  ta.focus();
+  ta.setSelectionRange(start, start + quoted.length);
+}
+
+function talkInsertHr() {
+  var ta = talkGetTextarea();
+  var start = ta.selectionStart;
+  ta.value = ta.value.substring(0, start) + '\\n---\\n' + ta.value.substring(ta.selectionEnd);
+  ta.focus();
+  ta.setSelectionRange(start + 5, start + 5);
+}
+
+// Quick image upload for talk editor
+async function handleTalkQuickUpload(input) {
+  if (!input.files || input.files.length === 0) return;
+  var files = Array.from(input.files);
+  input.value = '';
+  var compress = localStorage.getItem('compress_webp') === 'true';
+  var quality = parseFloat(localStorage.getItem('compress_quality')) || 0.8;
+  showLoading(true);
+  for (var i = 0; i < files.length; i++) {
+    try {
+      var file = files[i];
+      var fileToUpload = file;
+      var filename = file.name;
+      if (compress && file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+        var webpBlob = await compressImageToWebP(file, quality);
+        fileToUpload = webpBlob;
+        filename = filename.replace(/\.\w+$/, '.webp');
+      }
+      var base64 = await new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.readAsDataURL(fileToUpload);
+        reader.onload = function() { resolve(reader.result.split(',')[1]); };
+        reader.onerror = reject;
+      });
+      var imgPath = generateImagePath(filename);
+      var res = await fetchAPI('/upload', { method: 'POST', body: JSON.stringify({ filename: imgPath, content: base64 }) });
+      if (res && res.ok) {
+        var data = await res.json();
+        var ta = talkGetTextarea();
+        var start = ta.selectionStart;
+        var mdImg = '![' + file.name + '](' + data.url + ')';
+        ta.value = ta.value.substring(0, start) + mdImg + ta.value.substring(ta.selectionEnd);
+        ta.focus();
+        ta.setSelectionRange(start + mdImg.length, start + mdImg.length);
+      }
+    } catch (err) { console.error(err); }
+  }
+  showLoading(false);
+}
+
+// Talk keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('view-talk').classList.contains('active')) return;
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'b' || e.key === 'B') { e.preventDefault(); talkInsertBold(); }
+    else if (e.key === 'i' || e.key === 'I') { e.preventDefault(); talkInsertItalic(); }
+  }
+});
+
+// Talk paste handler - auto-upload pasted images
+document.getElementById('talk-textarea').addEventListener('paste', async function(e) {
+  var items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) {
+      e.preventDefault();
+      var file = items[i].getAsFile();
+      if (!file) continue;
+      showLoading(true);
+      var reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async function() {
+        var base64 = reader.result.split(',')[1];
+        var filename = generateImagePath(file.name);
+        var res = await fetchAPI('/upload', { method: 'POST', body: JSON.stringify({ filename: filename, content: base64 }) });
+        showLoading(false);
+        if (res && res.ok) {
+          var data = await res.json();
+          var ta = talkGetTextarea();
+          var start = ta.selectionStart;
+          var mdImg = '![' + file.name + '](' + data.url + ')';
+          ta.value = ta.value.substring(0, start) + mdImg + ta.value.substring(ta.selectionEnd);
+          ta.focus();
+          ta.setSelectionRange(start + mdImg.length, start + mdImg.length);
+        } else { alert('图片上传失败'); }
+      };
+      reader.onerror = function() { showLoading(false); alert('图片读取失败'); };
+      break;
+    }
+  }
+});
 
 // ==================== Utility ====================
 function escapeHTML(str) {
