@@ -1,116 +1,128 @@
 # Blog Admin Worker API
 
-Cloudflare Worker providing a blog admin backend and image hosting system.
-Data stored in GitHub repos, accessed via **GraphQL** (primary) + **REST** (fallback).
+Cloudflare Worker，提供博客管理后台与图片托管服务。
+数据存储在 GitHub 仓库中，通过 **GraphQL**（优先）+ **REST**（降级）访问。
 
 ---
 
-## Authentication
+## 基础信息
 
-All `/api/*` routes require:
+- **基础 URL（生产）**: `https://edit.upxuu.com`
+- **基础 URL（本地开发）**: `http://localhost:8787`
+- **CORS**: 全开 (`Access-Control-Allow-Origin: *`)，支持跨域调用
+
+---
+
+## 认证方式
+
+所有 `/api/*` 路由都需要在请求头中携带 Bearer Token：
 
 ```
 Authorization: Bearer <ADMIN_PASSWORD>
 ```
 
-`ADMIN_PASSWORD` is a Worker secret (`wrangler secret put ADMIN_PASSWORD`).
-Returning `401 Unauthorized` if missing or incorrect.
+`ADMIN_PASSWORD` 是 Worker 的 secret（通过 `wrangler secret put ADMIN_PASSWORD` 设置）。
+
+错误响应：
+
+```json
+401 Unauthorized
+```
 
 ---
 
-## Configuration
+## 配置变量
 
-Variables from `wrangler.toml [vars]` (also deployable via Cloudflare dashboard):
+`wrangler.toml [vars]` 中定义（也支持在 Cloudflare Dashboard 中覆盖）：
 
-| Variable         | Value                              | Purpose                   |
-|------------------|------------------------------------|---------------------------|
-| GITHUB_OWNER     | `ImUpXuu`                          | Blog repo owner           |
-| GITHUB_REPO      | `xuhome`                           | Blog repo name            |
-| GITHUB_BRANCH    | `main`                             | Blog repo branch          |
-| POSTS_PATH       | `src/posts`                        | Posts directory           |
-| TALK_OWNER       | `ImUpXuu`                          | Talk repo owner           |
-| TALK_REPO        | `xuhome`                           | Talk repo name            |
-| TALK_BRANCH      | `main`                             | Talk repo branch          |
-| TALK_PATH        | `src/talk`                         | Talk directory            |
-| IMAGE_PATH       | `public/images`                    | Legacy images directory   |
-| BLOG_URL         | `https://upxuu.com`                | Blog URL for IndexNow     |
-| PHOTO_OWNER      | `ImUpXuu`                          | Photo repo owner          |
-| PHOTO_REPO       | `photo`                            | Photo repo name           |
-| PHOTO_BRANCH     | `main`                             | Photo repo branch         |
-| PHOTO_PATH       | `images`                           | Photo directory           |
+| 变量             | 值             | 说明                         |
+|------------------|----------------|------------------------------|
+| GITHUB_OWNER     | `ImUpXuu`      | 博客仓库所有者               |
+| GITHUB_REPO      | `xuhome`       | 博客仓库名称                 |
+| GITHUB_BRANCH    | `main`         | 博客仓库分支                 |
+| POSTS_PATH       | `src/posts`    | 文章存放目录                 |
+| TALK_OWNER       | `ImUpXuu`      | 说说仓库所有者               |
+| TALK_REPO        | `xuhome`       | 说说仓库名称                 |
+| TALK_BRANCH      | `main`         | 说说仓库分支                 |
+| TALK_PATH        | `src/talk`     | 说说存放目录                 |
+| IMAGE_PATH       | `public/images`| 旧版图片目录                 |
+| BLOG_URL         | `https://upxuu.com` | 博客首页 URL（用于 IndexNow）|
+| PHOTO_OWNER      | `ImUpXuu`      | 图片仓库所有者（硬编码）      |
+| PHOTO_REPO       | `photo`        | 图片仓库名称（硬编码）        |
+| PHOTO_BRANCH     | `main`         | 图片仓库分支（硬编码）        |
+| PHOTO_PATH       | `images`       | 图片存放目录（硬编码）        |
 
-Secrets (set via `wrangler secret put`):
+Secret（通过 `wrangler secret put` 设置）：
 
-| Secret          | Purpose                                      |
-|-----------------|----------------------------------------------|
-| GITHUB_TOKEN    | GitHub personal access token (with repo scope)|
-| ADMIN_PASSWORD  | Admin panel Bearer token                     |
-
----
-
-## Frontend Routes
-
-These routes return `ADMIN_HTML` (the embedded SPA). The frontend handles
-client-side routing via `history.pushState` and `popstate`.
-
-| Route            | SPA View                               |
-|------------------|----------------------------------------|
-| `/`       | Editor (new post — uses `src/posts/`) |
-| `/new`          | Editor (same as `/`)                   |
-| `/edit/:filename` | Editor (loads existing post)         |
-| `/list`         | Post list with timeline filter         |
-| `/gallery`      | Image gallery with timeline            |
-| `/settings`     | Blog settings editor (`config.ts` + `Layout.astro`) |
-| `/talk`         | Talk editor                            |
-| `/edittalk/:filename` | Edit existing talk               |
+| Secret           | 说明                                      |
+|------------------|-------------------------------------------|
+| GITHUB_TOKEN     | GitHub 个人访问令牌（需要 repo 权限）      |
+| ADMIN_PASSWORD   | 管理后台 Bearer Token                      |
 
 ---
 
-## Public Proxy Routes
+## 前端路由（SPA）
 
-These require **no authentication** — they proxy images from GitHub raw URLs.
+以下路由返回 `ADMIN_HTML`（内嵌的单页应用），前端通过 `history.pushState` + `popstate` 做客户端路由。
+
+| 路由                     | 视图               |
+|--------------------------|--------------------|
+| `/`                      | 编辑器（新建文章） |
+| `/new`                   | 编辑器（同 `/`）   |
+| `/edit/:filename`        | 编辑器（加载已有文章）|
+| `/list`                  | 文章列表 + 时间筛选 |
+| `/gallery`               | 图片库 + 时间导航   |
+| `/settings`              | 博客设置（config.ts + Layout.astro） |
+| `/talk`                  | 说说编辑器          |
+| `/edittalk/:filename`    | 编辑已有说说        |
+
+---
+
+## 公开代理路由（无需认证）
+
+通过 Worker 代理图片请求，不暴露 GitHub 真实 URL。
 
 ### `GET /image/<path>`
 
-Proxy for **legacy images** in the blog repo (`GITHUB_REPO` / `IMAGE_PATH`).
+代理博客仓库（`GITHUB_REPO` / `IMAGE_PATH`）中的**旧版图片**。
 
 ```
-GET /image/2023/hero.jpg
+GET https://edit.upxuu.com/image/2023/hero.jpg
 → https://raw.githubusercontent.com/ImUpXuu/xuhome/main/public/images/2023/hero.jpg
 ```
 
-- Cache: `public, max-age=31536000` (1 year)
-- Returns `404 Image not found` if missing
+- 缓存: `public, max-age=31536000`（1 年）
+- 不存在时返回 `404 Image not found`
 
 ### `GET /img/<path>`
 
-Proxy for **new images** in the photo repo (`ImUpXuu/photo`).
+代理图片仓库（`ImUpXuu/photo`）中的**新版图片**。
 
 ```
-GET /img/2025/6/4/20250604_123_abc.webp
+GET https://edit.upxuu.com/img/2025/6/4/20250604_123_abc.webp
 → https://raw.githubusercontent.com/ImUpXuu/photo/main/images/2025/6/4/20250604_123_abc.webp
 ```
 
-- Path segments are `encodeURIComponent`-encoded individually (handles `year/month/day/` hierarchy)
-- Cache: `public, max-age=31536000` (1 year)
-- Returns `404 Image not found` if missing
+- 路径段逐个 `encodeURIComponent` 编码（正确处理 `年/月/日/` 层级）
+- 缓存: `public, max-age=31536000`（1 年）
+- 不存在时返回 `404 Image not found`
 
 ---
 
-## API Routes
+## API 路由
 
-All under `/api/`, all require `Authorization: Bearer <ADMIN_PASSWORD>`.
+所有路由前缀 `/api/`，全部需要 `Authorization: Bearer <ADMIN_PASSWORD>`。
 
-### Posts
+### 文章管理
 
-#### `GET /api/posts` (or `/api/list`)
+#### `GET /api/posts`（或 `/api/list`）
 
-List all posts.
+获取文章列表。
 
-- **GraphQL first**: queries `branch:src/posts` expression on GitHub, parses YAML frontmatter inline (avoids N+1)
-- **REST fallback**: if GraphQL fails, falls back to `GET /repos/.../contents/src/posts`
+- **GraphQL 优先**：查询 `branch:src/posts` 表达式，内联解析 YAML frontmatter（避免 N+1 查询）
+- **REST 降级**：GraphQL 失败时回退到 `GET /repos/.../contents/src/posts`
 
-Response:
+响应：
 
 ```json
 [
@@ -127,41 +139,41 @@ Response:
 
 #### `GET /api/post/:filename`
 
-Get single post content.
+获取单篇文章内容。
 
 ```
-GET /api/post/2025-01-01-hello.md
+GET https://edit.upxuu.com/api/post/2025-01-01-hello.md
 ```
 
-Response:
+响应：
 
 ```json
 {
-  "content": "---\ntitle: \"Hello\"\n---\n\nPost body here...",
+  "content": "---\ntitle: \"Hello\"\n---\n\n文章正文...",
   "sha": "abc123def456"
 }
 ```
 
-- `content` is base64-decoded from GitHub API, UTF-8 decoded
-- `sha` is the file's SHA for subsequent updates
+- `content` 从 GitHub API 的 base64 解码，UTF-8 处理
+- `sha` 用于后续更新
 
 #### `PUT /api/post/:filename`
 
-Create or update a post.
+创建或更新文章。
 
-Request:
+请求：
 
 ```json
 {
-  "content": "---\ntitle: \"Hello\"\n---\n\nMarkdown body",
+  "content": "---\ntitle: \"Hello\"\n---\n\nMarkdown 正文",
   "sha": "abc123def456"
 }
 ```
 
-- `sha` is optional for new files; if omitted, the worker auto-fetches existing SHA to avoid accidental overwrite
-- `content` is UTF-8 encoded → base64 before sending to GitHub
+- `sha` 对新文件可选；如果省略，Worker 自动获取已存在的 SHA（防止意外覆盖）
+- `content` 经过 UTF-8 编码 → base64 再发送到 GitHub
 
-Response (success):
+成功响应：
 
 ```json
 {
@@ -170,13 +182,17 @@ Response (success):
 }
 ```
 
-- **IndexNow**: on success, `ctx.waitUntil` asynchronously submits the post URL to `https://api.indexnow.org/indexnow` (Bing). The response includes a `pending` status immediately; actual submission happens in the background.
+- **IndexNow**：保存成功后通过 `ctx.waitUntil` 异步将文章 URL 提交到 `https://api.indexnow.org/indexnow`（Bing）。响应立即返回 `pending`，实际提交在后台执行。
 
 #### `DELETE /api/post/:filename`
 
-Delete a post.
+删除文章。
 
-Request:
+```
+DELETE https://edit.upxuu.com/api/post/2025-01-01-hello.md
+```
+
+请求：
 
 ```json
 {
@@ -184,21 +200,21 @@ Request:
 }
 ```
 
-- `sha` is required (GitHub API requirement for content deletion)
-- Commits with message: `Delete <filename> via Admin`
+- `sha` 必填（GitHub API 要求）
+- 提交信息：`Delete <filename> via Admin`
 
 ---
 
-### Images (Photo Repo)
+### 图片管理
 
 #### `GET /api/images`
 
-List ALL images from the **photo repo** (`ImUpXuu/photo/images/`).
+获取图片仓库（`ImUpXuu/photo/images/`）中的**全部图片**。
 
-- **Recursive GraphQL**: walks the tree structure (year/month/day subdirectories)
-- Returns flat array of all images
+- **递归 GraphQL**：遍历整个目录树（年/月/日 层级）
+- 返回扁平数组
 
-Response:
+响应：
 
 ```json
 [
@@ -210,44 +226,48 @@ Response:
 ]
 ```
 
-- Images are filtered by extension: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.svg`
+- 扩展名过滤：`.jpg` `.jpeg` `.png` `.gif` `.webp` `.svg`
 
 #### `POST /api/upload`
 
-Upload an image to the **photo repo**.
+上传图片到图片仓库。
 
-Request:
+```
+POST https://edit.upxuu.com/api/upload
+```
+
+请求：
 
 ```json
 {
   "filename": "2025/6/4/20250604_123_abc.webp",
-  "content": "<base64-encoded image data>"
+  "content": "<base64 编码的图片数据>"
 }
 ```
 
-- `filename` uses `year/month/day/` path structure (generated client-side)
-- `content` must be **raw base64** (NOT a data URI, NOT re-encoded by the worker)
-- Uploads directly to GitHub REST API (bypasses the UTF-8 re-encoding in `updateGitHubFile` to avoid corrupting binary data)
+- `filename` 使用 `年/月/日/` 路径结构（客户端生成）
+- `content` 必须是**纯 base64**（不是 data URI，Worker 不做二次编码）
+- 直接上传到 GitHub REST API（绕过 `updateGitHubFile` 的 UTF-8 重新编码，避免二进制文件损坏）
 
-Response (success):
+成功响应：
 
 ```json
 {
-  "url": "https://blog-admin.upxuu.workers.dev/img/2025/6/4/20250604_123_abc.webp"
+  "url": "https://edit.upxuu.com/img/2025/6/4/20250604_123_abc.webp"
 }
 ```
 
-- The URL points to the worker's `/img/` proxy, NOT the raw GitHub URL
+- URL 指向 Worker 的 `/img/` 代理，非 GitHub 原始链接
 
 #### `DELETE /api/img/:filename`
 
-Delete an image from the **photo repo**.
+删除图片仓库中的图片。
 
 ```
-DELETE /api/img/2025/6/4/20250604_123_abc.webp
+DELETE https://edit.upxuu.com/api/img/2025/6/4/20250604_123_abc.webp
 ```
 
-Request:
+请求：
 
 ```json
 {
@@ -255,18 +275,18 @@ Request:
 }
 ```
 
-- Path is `images/<filename>`
-- Uses hardcoded `PHOTO_OWNER` / `PHOTO_REPO` constants (not env vars)
+- 路径为 `images/<filename>`
+- 使用硬编码的 `PHOTO_OWNER` / `PHOTO_REPO`（非环境变量）
 
 #### `DELETE /api/image/:filename`
 
-Delete a legacy image from the **blog repo**.
+删除博客仓库中的旧版图片。
 
 ```
-DELETE /api/image/2023/hero.jpg
+DELETE https://edit.upxuu.com/api/image/2023/hero.jpg
 ```
 
-Request:
+请求：
 
 ```json
 {
@@ -274,18 +294,22 @@ Request:
 }
 ```
 
-- Path is `public/images/<filename>` (uses `IMAGE_PATH` env var)
-- Commits with message: `Delete image <filename> via Admin`
+- 路径为 `public/images/<filename>`（使用 `IMAGE_PATH` 环境变量）
+- 提交信息：`Delete image <filename> via Admin`
 
 ---
 
-### Settings (Blog Repo)
+### 博客设置
 
 #### `GET /api/settings`
 
-Fetch `src/config.ts` and `src/layouts/Layout.astro` from the **blog repo**.
+获取博客仓库中的 `src/config.ts` 和 `src/layouts/Layout.astro`。
 
-Response:
+```
+GET https://edit.upxuu.com/api/settings
+```
+
+响应：
 
 ```json
 {
@@ -300,40 +324,39 @@ Response:
 }
 ```
 
-- Content is base64-decoded from GitHub with UTF-8 handling
-
 #### `PUT /api/settings`
 
-Update `config` or `layout` file.
+更新 `config` 或 `layout` 文件。
 
-Request:
+```
+PUT https://edit.upxuu.com/api/settings
+```
+
+请求：
 
 ```json
 {
   "file": "config",
-  "content": "export default {\n  title: \"New Title\",\n  ...\n}",
+  "content": "export default {\n  title: \"新标题\",\n  ...\n}",
   "sha": "abc123..."
 }
 ```
 
-- `file` must be `"config"` or `"layout"`
-- Commits with message: `Update <file> via Admin Settings`
+- `file` 可选值：`"config"` 或 `"layout"`
+- 提交信息：`Update <file> via Admin Settings`
 
 ---
 
-### Talks
+### 说说管理
 
-Talk files are stored in the same `xuhome` repo but under `src/talk/` with
-dedicated helper functions that talk to `TALK_OWNER`/`TALK_REPO` vars.
+说说文件存放在 `xuhome` 仓库的 `src/talk/` 下，使用独立的 GitHub 请求函数
+（`TALK_OWNER` / `TALK_REPO` / `TALK_BRANCH`）。
 
 #### `GET /api/talks`
 
-List all talk files (from `TALK_PATH`).
+获取说说列表。
 
-- Same GraphQL + fallback pattern as posts
-- Parses YAML frontmatter for `title` and `date` fields
-
-Response:
+响应：
 
 ```json
 [
@@ -348,82 +371,89 @@ Response:
 ]
 ```
 
+- 解析 YAML frontmatter 中的 `title` 和 `date` 字段
+- GraphQL 优先，REST 降级
+
 #### `GET /api/talk/:filename`
 
-Get single talk content.
+获取单条说说内容。
 
-Response: `{ "content": "...", "sha": "..." }`
+```
+GET https://edit.upxuu.com/api/talk/2025-06-01.mdx
+```
+
+响应：`{ "content": "...", "sha": "..." }`
 
 #### `PUT /api/talk/:filename`
 
-Create or update a talk.
+创建或更新说说。
 
-- Same auto-fetch SHA logic as posts
-- Uses TALK-specific GitHub helpers (`TALK_OWNER`, `TALK_REPO`, `TALK_BRANCH`)
+- 自动获取已有 SHA 逻辑同文章
+- 使用 Talk 专用的 GitHub helpers（`TALK_OWNER` / `TALK_REPO` / `TALK_BRANCH`）
 
 #### `DELETE /api/talk/:filename`
 
-Delete a talk.
+删除说说。
 
-Request: `{ "sha": "..." }`
+请求：`{ "sha": "..." }`
 
 ---
 
-## Internal Architecture
+## 内部架构
 
-### Data Flow
-
-```
-Client → Worker → GitHub GraphQL API (primary)
-                  → GitHub REST API (fallback)
-```
-
-### GitHub Credentials
-
-Two repos are accessed:
-
-| Repo       | Owner      | Purpose            | Credentials                 |
-|------------|------------|--------------------|-----------------------------|
-| `xuhome`   | `ImUpXuu`  | Posts, settings, talk | `GITHUB_TOKEN` + env vars |
-| `photo`    | `ImUpXuu`  | Images             | `GITHUB_TOKEN` + hardcoded constants |
-
-### Image Proxying
-
-Images are NOT served directly from GitHub. The worker proxies them:
+### 数据流
 
 ```
-Frontend → Worker /img/ → GitHub raw URL
-         ← Worker caches 1 year
+客户端 → Worker → GitHub GraphQL API（首选）
+                  → GitHub REST API（降级）
 ```
 
-Benefits: hides the real GitHub URL, adds CORS headers, adds long cache.
+### GitHub 凭据
+
+涉及两个仓库：
+
+| 仓库     | 所有者    | 用途                 | 凭据方式                         |
+|----------|-----------|----------------------|----------------------------------|
+| `xuhome` | `ImUpXuu` | 文章、设置、说说     | `GITHUB_TOKEN` + 环境变量         |
+| `photo`  | `ImUpXuu` | 图片                 | `GITHUB_TOKEN` + 硬编码常量       |
+
+### 图片代理
+
+图片不直接暴露 GitHub 链接，通过 Worker 代理：
+
+```
+前端 → Worker /img/ → GitHub raw URL
+      ← Worker 缓存 1 年
+```
+
+好处：隐藏真实 GitHub URL、添加 CORS 头、添加长缓存。
 
 ### IndexNow
 
-On `PUT /api/post/:filename`, the worker:
+`PUT /api/post/:filename` 成功后：
 
-1. Saves the post to GitHub
-2. Reads the updated response
-3. Adds `indexNow.pending` to the response
-4. Calls `ctx.waitUntil(async () => fetch('https://api.indexnow.org/indexnow', {...}))`
+1. 保存文章到 GitHub
+2. 读取响应数据
+3. 在响应中添加 `indexNow.pending`
+4. 调用 `ctx.waitUntil(async () => fetch('https://api.indexnow.org/indexnow', {...}))`
 
-The IndexNow key and key location are currently hardcoded (should move to env vars).
+IndexNow key 和 keyLocation 目前硬编码在代码中（后续应迁移到环境变量）。
 
-### Talk Refs
+### 说说独立函数
 
-Since `xuhome` hosts both `src/posts/` and `src/talk/`, the worker maintains
-two separate sets of GitHub helpers (generic `githubRequest` vs. `talkGithubRequest`)
-that differ only in which repo variables they read. A future refactor could
-parameterize the repo target to eliminate this duplication.
+`xuhome` 仓库同时存放 `src/posts/`（文章）和 `src/talk/`（说说），
+Worker 维护了两套独立的 GitHub 请求函数（通用的 `githubRequest` 和专用的
+`talkGithubRequest`），区别仅在于读取的仓库变量不同。后续可以参数化
+仓库目标来消除重复。
 
 ---
 
-## Error Responses
+## 错误响应
 
-| Status | Body         | When                              |
-|--------|--------------|-----------------------------------|
-| 401    | `Unauthorized` | Missing/invalid Bearer token    |
-| 404    | `Not Found`    | Unknown route                   |
-| 404    | `Image not found` | Image not in GitHub raw       |
-| 4xx    | GitHub error JSON | REST API failures forwarded   |
-| 5xx    | `Failed to fetch settings files` | Config/layout not readable |
+| 状态码 | 返回体                                     | 说明                               |
+|--------|--------------------------------------------|------------------------------------|
+| 401    | `Unauthorized`                             | Bearer Token 缺失或错误             |
+| 404    | `Not Found`                                | 未知路由                           |
+| 404    | `Image not found`                          | GitHub 上未找到图片                 |
+| 4xx    | GitHub 返回的 JSON 错误信息                | REST API 错误透传                   |
+| 500    | `Failed to fetch settings files`           | 无法读取 config.ts 或 Layout.astro  |
