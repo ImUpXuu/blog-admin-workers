@@ -3,15 +3,27 @@ import { ADMIN_HTML } from './html.js';
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-    
-    // CORS headers
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
+
+    try {
+      return await handleRequest(request, env, ctx, corsHeaders);
+    } catch (err) {
+      console.error('Worker error:', err);
+      return new Response(JSON.stringify({ error: err.message || 'Internal Server Error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  },
+};
+
+async function handleRequest(request, env, ctx, corsHeaders) {
+    const url = new URL(request.url);
+    const path = url.pathname;
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
@@ -25,41 +37,29 @@ export default {
       });
     }
 
-      // Proxy Image (Public Access) - Old images from blog repo
-    if (path.startsWith('/image/')) {
-        const filename = path.replace('/image/', '');
-        const imageUrl = `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/${env.GITHUB_BRANCH}/${env.IMAGE_PATH}/${filename}`;
+      // Proxy Image with anti-hotlinking: only allow *.upxuu.com referrers
+    if (path.startsWith('/image/') || path.startsWith('/img/')) {
+        const referer = request.headers.get('Referer') || '';
+        const origin = request.headers.get('Origin') || '';
+        const allowed = referer.includes('upxuu.com') || origin.includes('upxuu.com') || !referer;
+        if (!allowed) {
+            return new Response('Forbidden', { status: 403 });
+        }
 
-        const imageRes = await fetch(imageUrl, {
-            headers: {
-                'User-Agent': 'Cloudflare-Worker-Blog-Admin',
-                'Authorization': `Bearer ${env.GITHUB_TOKEN}` // Use token for private repos
-            }
-        });
+        const isNew = path.startsWith('/img/');
+        const filename = path.replace(isNew ? '/img/' : '/image/', '');
 
-        if (!imageRes.ok) return new Response('Image not found', { status: 404 });
-
-        const newHeaders = new Headers(imageRes.headers);
-        newHeaders.set('Access-Control-Allow-Origin', '*');
-        newHeaders.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-
-        return new Response(imageRes.body, {
-            status: imageRes.status,
-            headers: newHeaders
-        });
-    }
-
-    // Proxy Image (Public Access) - New images from photo repo
-    if (path.startsWith('/img/')) {
-        const filename = path.replace('/img/', '');
-        const PHOTO_OWNER = 'ImUpXuu';
-        const PHOTO_REPO = 'photo';
-        const PHOTO_BRANCH = 'main';
-        const PHOTO_PATH = 'images';
-
-        // Encode each path segment to handle year/month/day structure
-        const encodedPath = filename.split('/').map(encodeURIComponent).join('/');
-        const imageUrl = `https://raw.githubusercontent.com/${PHOTO_OWNER}/${PHOTO_REPO}/${PHOTO_BRANCH}/${PHOTO_PATH}/${encodedPath}`;
+        let imageUrl;
+        if (isNew) {
+            const PHOTO_OWNER = 'ImUpXuu';
+            const PHOTO_REPO = 'photo';
+            const PHOTO_BRANCH = 'main';
+            const PHOTO_PATH = 'images';
+            const encodedPath = filename.split('/').map(encodeURIComponent).join('/');
+            imageUrl = `https://raw.githubusercontent.com/${PHOTO_OWNER}/${PHOTO_REPO}/${PHOTO_BRANCH}/${PHOTO_PATH}/${encodedPath}`;
+        } else {
+            imageUrl = `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/${env.GITHUB_BRANCH}/${env.IMAGE_PATH}/${filename}`;
+        }
 
         const imageRes = await fetch(imageUrl, {
             headers: {
@@ -242,11 +242,14 @@ export default {
 
       // Get Settings Files
       if (apiPath === '/settings' && request.method === 'GET') {
-          const configRes = await githubRequest(env, 'src/config.ts');
+          const configRes = await githubRequest(env, 'src/config/site.ts');
           const layoutRes = await githubRequest(env, 'src/layouts/Layout.astro');
           
           if (!configRes.ok || !layoutRes.ok) {
-              return new Response('Failed to fetch settings files', { status: 500 });
+              return new Response(JSON.stringify({ error: 'Failed to fetch settings files' }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              });
           }
           
           const configData = await configRes.json();
@@ -266,16 +269,19 @@ export default {
                   content: decode(layoutData.content),
                   sha: layoutData.sha
               }
-          }), { headers: { 'Content-Type': 'application/json' } });
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       
       // Update Settings File
       if (apiPath === '/settings' && request.method === 'PUT') {
           const body = await request.json();
           let path = '';
-          if (body.file === 'config') path = 'src/config.ts';
+          if (body.file === 'config') path = 'src/config/site.ts';
           else if (body.file === 'layout') path = 'src/layouts/Layout.astro';
-          else return new Response('Invalid file type', { status: 400 });
+          else return new Response(JSON.stringify({ error: 'Invalid file type' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
           
           return await updateGitHubFile(env, path, body.content, body.sha, `Update ${body.file} via Admin Settings`);
       }
@@ -315,8 +321,7 @@ export default {
     }
 
     return new Response('Not Found', { status: 404 });
-  },
-};
+}
 
 // GitHub API Helpers
 async function githubRequest(env, path, method = 'GET', body = null) {
@@ -383,9 +388,9 @@ async function listGitHubFiles(env, path) {
 
   const data = await res.json();
   
-  if (!res.ok || data.errors) {
+  if (!res.ok || data.errors || !data.data?.repository) {
       // Fallback to REST API if GraphQL fails
-      console.error('GraphQL Error:', data.errors);
+      console.error('GraphQL Error:', data.errors || 'repository null');
       return listGitHubFilesRest(env, path);
   }
 
@@ -408,7 +413,7 @@ async function listGitHubFiles(env, path) {
             const titleMatch = fm.match(/^title:\s*(["']?)(.*)\1$/m);
             if (titleMatch) title = titleMatch[2];
             
-            const dateMatch = fm.match(/^published:\s*(.*)$/m);
+            const dateMatch = fm.match(/^(?:published|date):\s*["']?(.*?)["']?\s*$/m);
             if (dateMatch) date = dateMatch[1].trim();
         }
     }
@@ -423,8 +428,6 @@ async function listGitHubFiles(env, path) {
     };
   });
   
-  // Since we need SHA for delete, and GraphQL 'oid' is the SHA.
-  // Let's refetch with OID included.
   return new Response(JSON.stringify(files), { headers: { 'Content-Type': 'application/json' } });
 }
 
@@ -526,7 +529,11 @@ async function listPhotoImages(env) {
           })
         });
         const data = await res.json();
-        return data.data?.repository?.object?.entries || [];
+        if (!res.ok || data.errors || !data.data?.repository) {
+          console.error('Photo GraphQL Error:', data.errors || 'repository null');
+          return [];
+        }
+        return data.data.repository.object?.entries || [];
     }
 
     async function getImagesRecursive(basePath) {
@@ -706,8 +713,8 @@ async function talkListFiles(env, path) {
     })
   });
   const data = await res.json();
-  if (!res.ok || data.errors) {
-    console.error('Talk GraphQL Error:', data.errors);
+  if (!res.ok || data.errors || !data.data?.repository) {
+    console.error('Talk GraphQL Error:', data.errors || 'repository null');
     return talkListFilesRest(env, path);
   }
   const entries = data.data.repository.object?.entries || [];
